@@ -1,27 +1,37 @@
+import 'dart:math';
+
+import 'package:faro/providers/logged_status.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import '../registration/text_registration_field.dart';
 
-class LoginCard extends StatefulWidget {
+class LoginCard extends ConsumerStatefulWidget {
   const LoginCard({super.key, required this.onLogStatusChange});
 
   final void Function() onLogStatusChange;
 
   @override
-  State<LoginCard> createState() {
+  ConsumerState<LoginCard> createState() {
     return _LoginCardState();
   }
 }
 
-class _LoginCardState extends State<LoginCard> {
+class _LoginCardState extends ConsumerState<LoginCard> {
   final _formKey = GlobalKey<FormState>();
   bool _isLogin = true;
   bool _isLoading = false;
-  String token = '';
-  String _enteredEmail = '';
-  String _enteredName = '';
-  String _enteredPassword = '';
+  String? _enteredName;
+  String? token;
+  String? _enteredEmail;
+  String? _enteredPassword;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(loggedStatusProvider.notifier).loadUserLoginData();
+  }
 
   void _snackBarMessage(data) {
     ScaffoldMessenger.of(context).clearSnackBars();
@@ -44,7 +54,8 @@ class _LoginCardState extends State<LoginCard> {
     }
   }
 
-  void _loginRequestion(String enteredEmail, String enteredPassword) async {
+  Future<String?> _loginRequestion(
+      String enteredEmail, String enteredPassword) async {
     setState(() {
       // on affiche un loading spiner et désactive les boutons le temps de la requête.
       _isLoading = true;
@@ -68,18 +79,21 @@ class _LoginCardState extends State<LoginCard> {
     });
 
     if (!context.mounted) {
-      return;
+      return null;
     }
-    final data = json.decode(response.body);
-
+    final bodyData = json.decode(response.body);
     // affichage du status de la requête
     if (response.statusCode >= 400) {
-      _snackBarMessage(data);
-      return;
+      _snackBarMessage(bodyData);
+      return null;
     } else {
-      _snackBarMessage(data);
-      widget.onLogStatusChange();
+      _snackBarMessage(bodyData);
+      // widget.onLogStatusChange();
+      // récupère le token.
+      // print(response.headers);
     }
+    response.headers.removeWhere((key, value) => key != "authorization");
+    return response.headers["authorization"];
   }
 
   void _createUserAccount() async {
@@ -129,7 +143,7 @@ class _LoginCardState extends State<LoginCard> {
       _snackBarMessage(data);
     }
 
-    _loginRequestion(_enteredEmail, _enteredPassword);
+    _loginRequestion(_enteredEmail!, _enteredPassword!);
   }
 
   void _userLogin() async {
@@ -140,11 +154,23 @@ class _LoginCardState extends State<LoginCard> {
       return;
     }
 
-    _loginRequestion(_enteredEmail, _enteredPassword);
+    final String? token =
+        await _loginRequestion(_enteredEmail!, _enteredPassword!);
+
+    ref
+        .read(loggedStatusProvider.notifier)
+        .appendUserLoginData(_enteredEmail!, _enteredPassword!, token ?? '');
   }
 
   @override
   Widget build(BuildContext context) {
+    final loggedStatus = ref.watch(loggedStatusProvider);
+    if (loggedStatus.isNotEmpty) {
+      _enteredEmail = loggedStatus["email"];
+      _enteredPassword = loggedStatus["password"];
+      token = loggedStatus["token"];
+    }
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -158,18 +184,20 @@ class _LoginCardState extends State<LoginCard> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     TextRegistrationField(
-                        enteredValue: _enteredEmail,
+                        key: ValueKey(Random()),
+                        enteredValue: _enteredEmail ?? '',
                         onValidate: _setEnteredValue,
                         fieldType: 'email'),
                     const SizedBox(height: 20),
                     TextRegistrationField(
-                        enteredValue: _enteredPassword,
+                        key: ValueKey(Random()),
+                        enteredValue: _enteredPassword ?? '',
                         onValidate: _setEnteredValue,
                         fieldType: 'password'),
                     const SizedBox(height: 20),
                     if (!_isLogin)
                       TextRegistrationField(
-                          enteredValue: _enteredName,
+                          enteredValue: _enteredName ?? '',
                           onValidate: _setEnteredValue,
                           fieldType: 'name'),
                     const SizedBox(
@@ -197,6 +225,7 @@ class _LoginCardState extends State<LoginCard> {
                               : () {
                                   setState(() {
                                     _isLogin = !_isLogin;
+                                    print(loggedStatus);
                                   });
                                 },
                           child: Text(_isLogin ? 'Sign up' : 'Sign in'),

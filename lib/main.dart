@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import './screens/login_screen.dart';
 import './screens/home.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
@@ -20,7 +26,6 @@ class _MyAppState extends State<MyApp> {
   void _setLoggedStatus() {
     setState(() {
       isLoggedIn = !isLoggedIn;
-      print(isLoggedIn);
     });
   }
 
