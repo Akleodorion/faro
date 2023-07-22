@@ -20,6 +20,7 @@ class LoginCard extends ConsumerStatefulWidget {
 
 class _LoginCardState extends ConsumerState<LoginCard> {
   final _formKey = GlobalKey<FormState>();
+  bool? _isChecked;
   bool _isLogin = true;
   bool _isLoading = false;
   String? _enteredName;
@@ -30,7 +31,18 @@ class _LoginCardState extends ConsumerState<LoginCard> {
   @override
   void initState() {
     super.initState();
-    ref.read(loggedStatusProvider.notifier).loadUserLoginData();
+    _initFormValues();
+  }
+
+  Future<void> _initFormValues() async {
+    final db = await getDatabase();
+    final userLoginData = await db.query('user_login');
+    setState(() {
+      _enteredEmail = userLoginData[0]["email"] as String;
+      _enteredPassword = userLoginData[0]["password"] as String;
+      token = userLoginData[0]["token"] as String;
+      _isChecked = userLoginData[0]["checked"] == 'true';
+    });
   }
 
   void _snackBarMessage(data) {
@@ -153,24 +165,15 @@ class _LoginCardState extends ConsumerState<LoginCard> {
     } else {
       return;
     }
-
     final String? token =
         await _loginRequestion(_enteredEmail!, _enteredPassword!);
 
-    ref
-        .read(loggedStatusProvider.notifier)
-        .appendUserLoginData(_enteredEmail!, _enteredPassword!, token ?? '');
+    ref.read(loggedStatusProvider.notifier).appendUserLoginData(
+        _enteredEmail!, _enteredPassword!, token ?? '', _isChecked.toString());
   }
 
   @override
   Widget build(BuildContext context) {
-    final loggedStatus = ref.watch(loggedStatusProvider);
-    if (loggedStatus.isNotEmpty) {
-      _enteredEmail = loggedStatus["email"];
-      _enteredPassword = loggedStatus["password"];
-      token = loggedStatus["token"];
-    }
-
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -206,6 +209,28 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        Checkbox(
+                          value: _isChecked ?? false,
+                          onChanged: (value) {
+                            // print(value);
+
+                            setState(() {
+                              _isChecked = value;
+                            });
+                          },
+                        ),
+                        const SizedBox(
+                          width: 15,
+                        ),
+                        const Text('Remember me ?'),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 20,
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         _isLoading
                             ? const CircularProgressIndicator()
                             : ElevatedButton(
@@ -225,7 +250,6 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                               : () {
                                   setState(() {
                                     _isLogin = !_isLogin;
-                                    print(loggedStatus);
                                   });
                                 },
                           child: Text(_isLogin ? 'Sign up' : 'Sign in'),
