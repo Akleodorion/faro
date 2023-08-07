@@ -9,16 +9,19 @@ class LoginScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Faro²'),
-        actions: [
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.replay_outlined),
-          )
-        ],
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color.fromRGBO(42, 43, 42, 1),
+              Color.fromRGBO(42, 43, 42, 0.2)
+            ],
+          ),
+        ),
+        child: LoginCard(onLogStatusChange: onLogStatusChange),
       ),
-      body: LoginCard(onLogStatusChange: onLogStatusChange),
     );
   }
 }

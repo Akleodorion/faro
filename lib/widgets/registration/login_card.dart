@@ -2,9 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:sqflite/sqflite.dart' as sql;
-import 'package:sqflite/sqlite_api.dart';
-import 'package:path/path.dart' as path;
+import '../../utilities/database.dart';
 import '../registration/text_registration_field.dart';
 
 class LoginCard extends StatefulWidget {
@@ -50,43 +48,6 @@ class _LoginCardState extends State<LoginCard> {
     }
   }
 
-  Future<Database> _getDatabase() async {
-    // récupère le path de la DB
-    final dbPath = await sql.getDatabasesPath();
-    final db = await sql.openDatabase(
-      path.join(dbPath, 'faro.db'),
-      onCreate: (db, version) {
-        return db.execute(
-          'CREATE TABLE user_login(email TEXT, password TEXT, token TEXT)',
-        );
-      },
-      onUpgrade: (db, oldVersion, newVersion) {
-        return db.execute('alter TABLE user_login ADD COLUMN checked TEXT');
-      },
-      version: 2,
-    );
-    return db;
-  }
-
-  void _appendUserLoginData(
-      String email, String password, String token, String isChecked) async {
-    final db = await _getDatabase();
-    final userLoginData = await db.query('user_login');
-
-    final Map<String, String> updatedValue = {
-      'email': email,
-      'password': password,
-      'token': token,
-      'checked': isChecked,
-    };
-
-    if (userLoginData.isEmpty) {
-      await db.insert('user_login', updatedValue);
-    } else {
-      await db.update('user_login', updatedValue);
-    }
-  }
-
   _loginRequest(String enteredEmail, String enteredPassword) async {
     // on affiche un loading spiner et désactive les boutons le temps de la requête.
     setState(() {
@@ -120,7 +81,7 @@ class _LoginCardState extends State<LoginCard> {
     response.headers.removeWhere((key, value) => key != "authorization");
     final token = response.headers["authorization"];
 
-    _appendUserLoginData(
+    appendUserLoginData(
         _enteredEmail!, _enteredPassword!, token!, _isChecked.toString());
 
     widget.onLogStatusChange();
@@ -133,7 +94,7 @@ class _LoginCardState extends State<LoginCard> {
   }
 
   Future<void> _initFormValues() async {
-    final db = await _getDatabase();
+    final db = await getDatabase();
     final userLoginData = await db.query('user_login');
 
     // 1er cas, première connexion et pas de token.
